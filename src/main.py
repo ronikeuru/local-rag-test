@@ -1,5 +1,6 @@
 import os
 import ollama
+import click
 import chromadb
 import feedparser
 
@@ -35,29 +36,22 @@ def pull_model(model):
 
         current_digest = digest
 
-def init():
-    if not RSS_FEED_PATH:
-        raise EnvironmentError("RSS path was not defined")
-    if not EMBEDDING_MODEL:
-        raise EnvironmentError("Embedding model name is not defined")
-    if not GENERATIVE_MODEL:
-        raise EnvironmentError("Generative model name is not defined")
-
+def init(emod, mod):
     try:
-        ollama.show(EMBEDDING_MODEL)
+        ollama.show(emod)
     except ollama.ResponseError as e:
         print(f"Error: {e.error}")
         if e.status_code == 404:
-            print(f"Pulling the embedding model: {EMBEDDING_MODEL}")
-            pull_model(EMBEDDING_MODEL)
+            print(f"Pulling the embedding model: {emod}")
+            pull_model(emod)
 
     try:
-        ollama.show(GENERATIVE_MODEL)
+        ollama.show(mod)
     except ollama.ResponseError as e:
         print(f"Error: {e.error}")
         if e.status_code == 404:
-            print(f"Pulling the generative model: {GENERATIVE_MODEL}")
-            pull_model(GENERATIVE_MODEL)
+            print(f"Pulling the generative model: {mod}")
+            pull_model(mod)
 
     feed = feedparser.parse(RSS_FEED_PATH)
     feed_entries = feed.entries
@@ -131,14 +125,37 @@ def main_loop(collection):
 def clean(client):
     client.delete_collection(COLLECTION_NAME)
 
+@click.command()
+@click.option(
+    "--emod",
+    prompt="Enter the embedding model name",
+    help="The embedding model used for vector retrieval",
+    default=EMBEDDING_MODEL
+)
+@click.option(
+    "--mod",
+    prompt="Enter the generative model name",
+    help="The generative model used for text generation",
+    default=GENERATIVE_MODEL
+)
+def run(emod, mod):
+    client, collection = init(emod, mod)
+    if collection:
+        main_loop(collection)
+
+    if client:
+        clean(client)
+
 if __name__ == "__main__":
     try:
-        client, collection = init()
+        if not RSS_FEED_PATH:
+            raise EnvironmentError("RSS path was not defined")
+        if not EMBEDDING_MODEL:
+            raise EnvironmentError("Embedding model name is not defined")
+        if not GENERATIVE_MODEL:
+            raise EnvironmentError("Generative model name is not defined")
 
-        if collection:
-            main_loop(collection)
+        run()
 
-        if client:
-            clean(client)
     except Exception as e:
         print(e)
