@@ -16,6 +16,25 @@ GENERATIVE_MODEL = os.getenv("GENERATIVE_MODEL")
 def generate_embedding(doc):
     return ollama.embeddings(model=EMBEDDING_MODEL, prompt=doc)["embedding"]
 
+def pull_model(model):
+    current_digest, bars = '', {}
+    for progress in ollama.pull(model, stream=True):
+        digest = progress.get('digest', '')
+        if digest != current_digest and current_digest in bars:
+            bars[current_digest].close()
+
+        if not digest:
+            print(progress.get('status'))
+            continue
+
+        if digest not in bars and (total := progress.get('total')):
+            bars[digest] = tqdm(total=total, desc=f'pulling {digest[7:19]}', unit='B', unit_scale=True)
+
+        if completed := progress.get('completed'):
+            bars[digest].update(completed - bars[digest].n)
+
+        current_digest = digest
+
 def init():
     if not RSS_FEED_PATH:
         raise EnvironmentError("RSS path was not defined")
@@ -29,16 +48,16 @@ def init():
     except ollama.ResponseError as e:
         print(f"Error: {e.error}")
         if e.status_code == 404:
-            print("Pulling the embedding model: {EMBEDDING_MODEL}")
-            ollama.pull(EMBEDDING_MODEL)
+            print(f"Pulling the embedding model: {EMBEDDING_MODEL}")
+            pull_model(EMBEDDING_MODEL)
 
     try:
         ollama.show(GENERATIVE_MODEL)
     except ollama.ResponseError as e:
         print(f"Error: {e.error}")
         if e.status_code == 404:
-            print("Pulling the generative model: {GENERATIVE_MODEL}")
-            ollama.pull(GENERATIVE_MODEL)
+            print(f"Pulling the generative model: {GENERATIVE_MODEL}")
+            pull_model(GENERATIVE_MODEL)
 
     feed = feedparser.parse(RSS_FEED_PATH)
     feed_entries = feed.entries
