@@ -31,5 +31,6 @@ Streamlit UI coming maybe soonish..
 
 ## References
 
-https://ollama.com/blog/embedding-models
-https://ollama.com/library/phi3
+ - [Embedding Models](https://ollama.com/blog/embedding-models)
+ - [Phi-3 on Ollama](https://ollama.com/library/phi3)
+ - [Better Model Pulling](https://github.com/ollama/ollama-python/blob/main/examples/pull-progress/main.py)
